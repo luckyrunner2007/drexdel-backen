@@ -10,7 +10,6 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { CreateEventScreen } from './src/screens/Dashboard/CreateEventScreen';
 import { CheckoutScreen } from './src/screens/Discovery/CheckoutScreen';
 import { TicketReceiptScreen } from './src/screens/Discovery/TicketReceiptScreen';
-
 // 1. IMPORTING YOUR CORE DATA ARCHITECTURE STRIPS
 import { UserRole } from './src/@types/events';
 import { RootStackParamList, AuthStackParamList, TabParamList } from './src/@types/navigation';
