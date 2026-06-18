@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 //  FIX: Jump back two levels out of screens/Dashboard folder to resolve core client modules cleanly
 import { drexdelApiClient } from '../../services/api/client';
-export const { CreateEventScreen } = ({ navigation }: any) => {
+export function CreateEventScreen({ navigation }: any) {
   // 1. Setting up state variables to catch field entries
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');

@@ -7,7 +7,7 @@ import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import {CreateEventScreen} from './src/screens/Dashboard/CreateEventScreen';
+import { CreateEventScreen } from './src/screens/Dashboard/CreateEventScreen';
 import { CheckoutScreen } from './src/screens/Discovery/CheckoutScreen';
 import { TicketReceiptScreen } from './src/screens/Discovery/TicketReceiptScreen';
 // 1. IMPORTING YOUR CORE DATA ARCHITECTURE STRIPS
