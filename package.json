@@ -6,7 +6,7 @@
     "android": "react-native run-android",
     "ios": "react-native run-ios",
     "start": "react-native start --reset-cache",
-    "build": "npx expo export:web",
+    "build": "npx expo export",
     "test": "jest",
     "lint": "eslint ."
   },
