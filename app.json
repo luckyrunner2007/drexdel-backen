@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "drexdelnative",
+    "slug": "drexdel",
+    "version": "1.0.0",
+    "sdkVersion": "56.0.0",
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#7B2CBF"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "android": {
+      "package": "com.drexdel.nativeapp",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#7B2CBF"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.drexdel.nativeapp",
+      "buildNumber": "1.0.0"
+    },
+    "extra": {
+      "apiBaseUrl": "https://drexdel.com",
+      "eas": {
+        "projectId": "c33c9e86-6007-4d74-ae55-d02c121ad097"
+      }
+    },
+    "owner": "drexdel"
+  }
+}
