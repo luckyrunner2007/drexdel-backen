@@ -2,7 +2,7 @@
   "name": "drexdelnative",
   "version": "1.0.0",
   "private": true,
-  "main": "App.js",
+  "main": "App.tsx",
   "scripts": {
     "android": "expo start --android",
     "ios": "expo start --ios",
