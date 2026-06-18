@@ -9,6 +9,9 @@
       "android",
       "web"
     ],
+    "web": {
+      "bundler": "metro"
+    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "splash": {
