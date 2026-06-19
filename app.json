@@ -35,11 +35,9 @@
       "buildNumber": "1.0.0"
     },
     "extra": {
-      "apiBaseUrl": "https://drexdel.com",
       "eas": {
-        "projectId": "c33c9e86-6007-4d74-ae55-d02c121ad097"
+        "projectId": "653e2845-243d-4f0b-a399-f63f3321ca86"
       }
-    },
-    "owner": "drexdel"
+    }
   }
 }
