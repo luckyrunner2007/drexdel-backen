@@ -3,12 +3,7 @@
     "name": "drexdelnative",
     "slug": "drexdel",
     "version": "1.0.0",
-    "sdkVersion": "56.0.0",
-    "platforms": [
-      "ios",
-      "android",
-      "web"
-    ],
+    "platforms": ["ios", "android", "web"],
     "web": {
       "bundler": "metro"
     },
@@ -19,9 +14,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#7B2CBF"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "android": {
       "package": "com.drexdel.nativeapp",
       "versionCode": 1,
@@ -33,11 +26,6 @@
     "ios": {
       "bundleIdentifier": "com.drexdel.nativeapp",
       "buildNumber": "1.0.0"
-    },
-    "extra": {
-      "eas": {
-        "projectId": "653e2845-243d-4f0b-a399-f63f3321ca86"
-      }
     }
   }
 }
