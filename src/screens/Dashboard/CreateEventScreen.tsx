@@ -41,7 +41,7 @@ export default function CreateEventScreen({ navigation }: any) {
 
       if (response.success && response.status === 201) {
         Alert.alert('🎉 Success', 'Event saved permanently into your database tables!');
-        navigation.goBack(); // Slides screen back to dashboard automatically
+        router.back(); // Slides screen back to dashboard automatically
       } else {
         Alert.alert('❌ Error', response.message || 'Transaction write failed. Check server status logs.');
       }

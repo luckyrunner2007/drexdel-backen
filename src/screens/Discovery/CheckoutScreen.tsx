@@ -1,7 +1,9 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { useRoute, useNavigation } from '@react-navigation/native';
-import { GlobalNavigationProp } from '../../@types/navigation';
+import { useRouter } from 'expo-router';
+
+const router = useRouter();
+router.push({ pathname: `/event/${item.id}`, params: { eventData: JSON.stringify(item) } });
 import { InputField } from '../../components/Common/InputField';
 import { drexdelApiClient } from '../../services/api/client';
 
@@ -13,8 +15,9 @@ const PAYMENT_METHODS = [
 ] as const;
 
 export const CheckoutScreen: React.FC = () => {
-  const route = useRoute<any>();
-  const navigation = useNavigation<GlobalNavigationProp>();
+  const params = useLocalSearchParams();
+  const router = useRouter();
+router.push({ pathname: `/event/${item.id}`, params: { eventData: JSON.stringify(item) } });
   const {
     eventTitle,
     selectedTierName,
@@ -22,7 +25,7 @@ export const CheckoutScreen: React.FC = () => {
     currency,
     ticketQuantity,
     eventId,
-  } = route.params || {};
+  } = router.params || {};
 
   const [paymentMethod, setPaymentMethod] = useState<'credit_card' | 'paypal' | 'mtn_momo' | 'airtel_money'>('credit_card');
   const [customerEmail, setCustomerEmail] = useState('');
@@ -69,14 +72,14 @@ export const CheckoutScreen: React.FC = () => {
         return;
       }
 
-      navigation.navigate('TicketReceipt', {
+      router.push({ pathname: '/', params: {
         ticketId: `TICKET-${Date.now()}`,
         encryptedToken: `TOK-${Math.random().toString(36).substring(2, 12).toUpperCase()}`,
         eventTitle,
         tierName: selectedTierName,
         amount: totalAmount,
         currency,
-      });
+      } });
     } catch (error: any) {
       Alert.alert('Payment Error', error.message || 'Unable to complete purchase.');
     } finally {

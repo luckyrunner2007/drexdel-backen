@@ -9,7 +9,7 @@ import {
   TextInput, 
   Dimensions 
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import { DrexdelEvent, EventCategory } from '../../@types/events';
 import { EventCard } from '../../components/Discovery/EventCard';
 
@@ -60,7 +60,7 @@ const COMPREHENSIVE_EVENTS_MOCK: DrexdelEvent[] = [
     description: 'An intimate neighborhood social gathering with acoustic sessions and open mic layouts.',
     category: 'party',
     location: { venueName: 'David\'s Estate Garden', address: 'Nyarutarama Close 4', latitude: -1.9392, longitude: 30.0981 },
-    isPrivate: true, // User-generated micro event
+    isPrivate: true,
     imageUrl: 'https://unsplash.com',
     startTime: '2026-06-20T19:00:00Z',
     endTime: '2026-06-21T02:00:00Z',
@@ -89,13 +89,13 @@ const FILTER_TABS: QuickFilterTab[] = [
 ];
 
 export const HomeScreen: React.FC = () => {
-  const navigation = useNavigation<any>();
+  const router = useRouter(); // ✅ INSIDE the component
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<EventCategory | 'all'>('all');
   const [orderedEvents, setOrderedEvents] = useState<DrexdelEvent[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // MOCK USER ONBOARDING PREFERENCES (Simulating that this user chose Tech and Parties when signing up)
+  // MOCK USER ONBOARDING PREFERENCES
   const USER_INTEREST_PREFERENCES: EventCategory[] = ['ai_conference', 'party'];
 
   useEffect(() => {
@@ -105,7 +105,6 @@ export const HomeScreen: React.FC = () => {
 
   // --- THE DREXDEL RECOMMENDATION ALGORITHM ---
   const runRecommendationSortingEngine = () => {
-    // Phase 1: Filter out events based on search inputs and tab selections
     let result = COMPREHENSIVE_EVENTS_MOCK.filter(event => {
       const matchesTab = activeTab === 'all' || event.category === activeTab;
       const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -113,14 +112,13 @@ export const HomeScreen: React.FC = () => {
       return matchesTab && matchesSearch;
     });
 
-    // Phase 2: Sort based on user preference weights
     result.sort((a, b) => {
       const aIsPreferred = USER_INTEREST_PREFERENCES.includes(a.category);
       const bIsPreferred = USER_INTEREST_PREFERENCES.includes(b.category);
 
-      if (aIsPreferred && !bIsPreferred) return -1; // Push preferred compound a up the layout stack
-      if (!aIsPreferred && bIsPreferred) return 1;  // Push preferred compound b up the layout stack
-      return 0; // Maintain original chronological timestamp sorting order if weights match
+      if (aIsPreferred && !bIsPreferred) return -1;
+      if (!aIsPreferred && bIsPreferred) return 1;
+      return 0;
     });
 
     setOrderedEvents(result);
@@ -131,6 +129,17 @@ export const HomeScreen: React.FC = () => {
     setTimeout(() => {
       setIsRefreshing(false);
     }, 1000);
+  };
+
+  const handleEventPress = (item: DrexdelEvent) => {
+    router.push({
+      pathname: `/event/${item.id}`,
+      params: { eventData: JSON.stringify(item) }
+    });
+  };
+
+  const handleHostEvent = () => {
+    router.push('/create-event');
   };
 
   return (
@@ -157,10 +166,10 @@ export const HomeScreen: React.FC = () => {
             title={item.title}
             category={item.category.replace('_', ' ')}
             imageUri={item.imageUrl}
-            distanceKm={2.3} // In the future, parsed background via locationService.ts math
+            distanceKm={2.3}
             priceTiers={item.ticketTiers}
             isOrganizerVerified={item.isOrganizerVerified}
-            onPress={() => navigation.navigate('EventDetails', { eventId: item.id, eventData: item })}
+            onPress={() => handleEventPress(item)}
           />
         )}
         refreshing={isRefreshing}
@@ -168,7 +177,6 @@ export const HomeScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContainerContent}
         
-        // Horizontal Categories layout slider injected cleanly as a Header node to save layout weight
         ListHeaderComponent={
           <View style={styles.horizontalSliderWrapper}>
             <Text style={styles.sliderHeading}>Explore Categories</Text>
@@ -200,7 +208,7 @@ export const HomeScreen: React.FC = () => {
         ListFooterComponent={
           <TouchableOpacity
             style={styles.hostEventButton}
-            onPress={() => navigation.navigate('CreateEvent')}
+            onPress={handleHostEvent}
             activeOpacity={0.85}
           >
             <Text style={styles.hostEventButtonText}>➕ HOST NEW EVENT</Text>

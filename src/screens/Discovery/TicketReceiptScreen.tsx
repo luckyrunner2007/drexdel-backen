@@ -1,9 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useRoute } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
+
+const router = useRouter();
+router.push({ pathname: `/event/${item.id}`, params: { eventData: JSON.stringify(item) } });
 
 export const TicketReceiptScreen: React.FC = () => {
-  const route = useRoute<any>();
+  const params = useLocalSearchParams();
   const { ticketId, eventTitle, tierName, amount, currency } = route.params || {};
 
   return (

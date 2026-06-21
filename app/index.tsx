@@ -1,11 +1,5 @@
-import { View, Text } from 'react-native';
+import { Redirect } from 'expo-router';
 
-export default function Home() {
-  return (
-    <View style={{flex:1, justifyContent:'center', alignItems:'center', backgroundColor:'#FAFE'}}>
-      <Text style={{color:'#7B2CBF', fontSize:24, fontWeight:'700'}}>
-        DREXDEL LOADED ✅
-      </Text>
-    </View>
-  );
+export default function Index() {
+  return <Redirect href="/(tabs)" />;
 }

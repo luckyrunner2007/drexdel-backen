@@ -10,7 +10,10 @@ import {
   Platform, 
   Dimensions 
 } from 'react-native';
-import { useRoute } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
+
+const router = useRouter();
+router.push({ pathname: `/event/${item.id}`, params: { eventData: JSON.stringify(item) } });
 import { ChatMessage } from '../../@types/events';
 import { EventCard } from '../../components/Discovery/EventCard';
 
@@ -53,11 +56,11 @@ const INITIAL_MESSAGES_MOCK: ChatMessage[] = [
 ];
 
 export const RoomScreen: React.FC = () => {
-  const route = useRoute<any>();
+  const params = useLocalSearchParams();
   const flatListRef = useRef<FlatList>(null);
 
   // Safely fallback to defaults if routed directly via tabs instead of navigation stack parameters
-  const roomName = route.params?.roomName || 'Weekend Squad';
+  const roomName = router.params?.roomName || 'Weekend Squad';
   
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES_MOCK);
   const [inputText, setInputText] = useState('');

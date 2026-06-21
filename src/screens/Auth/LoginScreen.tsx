@@ -11,13 +11,13 @@ import {
   Platform, 
   ScrollView 
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { GlobalNavigationProp } from '../../@types/navigation';
+import { useRouter } from 'expo-router';
 
-const { height } = Dimensions.get('window');
+const router = useRouter();
+router.push({ pathname: `/event/${item.id}`, params: { eventData: JSON.stringify(item) } });
 
 export const LoginScreen: React.FC = () => {
-  const navigation = useNavigation<GlobalNavigationProp>();
+  const router = useRouter();
   
   // State management for user input credentials
   const [identity] = useState(''); // Handles either email or phone number
@@ -55,7 +55,7 @@ export const LoginScreen: React.FC = () => {
 
       // 2. Otherwise, route standard casual users and promoters directly to core tabs
       // In production, the backend returns the actual UserRole object from events.d.ts
-      navigation.replace('MainTabs');
+      router.replace('/');
     }, 1500);
   };
 

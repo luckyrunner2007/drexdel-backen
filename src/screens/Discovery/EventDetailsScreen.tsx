@@ -10,18 +10,17 @@ import {
   Alert,
   Platform
 } from 'react-native';
-import { useRoute, useNavigation } from '@react-navigation/native';
 import { DrexdelEvent, TicketTier } from '../../@types/events';
-import { GlobalNavigationProp } from '../../@types/navigation';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 const { width, height } = Dimensions.get('window');
 
 export const EventDetailsScreen: React.FC = () => {
-  const route = useRoute<any>();
-  const navigation = useNavigation<GlobalNavigationProp>();
+  const params = useLocalSearchParams();
+  const router = useRouter();
   
   // Extracting parameters passed down from the HomeScreen item selection tap
-  const eventData: DrexdelEvent = route.params?.eventData;
+  const eventData: DrexdelEvent | null = params?.eventData ? JSON.parse(params.eventData as string) : null;
 
   // Local state to track which ticket tier option the user has selected
   const [selectedTierId, setSelectedTierId] = useState<string | null>(null);
@@ -31,7 +30,7 @@ export const EventDetailsScreen: React.FC = () => {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorTextText}>⚠️ Event details failed to load.</Text>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Text style={styles.backButtonText}>Return to Feed</Text>
         </TouchableOpacity>
       </View>
@@ -61,14 +60,17 @@ export const EventDetailsScreen: React.FC = () => {
     if (!activeTier) return;
 
     // Directing metadata parameters straight down to checkout stack paths
-    navigation.navigate('Checkout', {
-      eventId: eventData.id,
-      eventTitle: eventData.title,
-      selectedTierId: selectedTierId,
-      selectedTierName: activeTier?.name || 'Ticket',
-      selectedTierPrice: activeTier?.price || 0,
-      currency: activeTier?.currency || 'USD',
-      ticketQuantity: 1
+    router.push({
+      pathname: '/checkout',
+      params: {
+        eventId: eventData.id,
+        eventTitle: eventData.title,
+        selectedTierId: selectedTierId,
+        selectedTierName: activeTier?.name || 'Ticket',
+        selectedTierPrice: String(activeTier?.price || 0),
+        currency: activeTier?.currency || 'USD',
+        ticketQuantity: '1'
+      }
     });
   };
 
@@ -80,7 +82,7 @@ export const EventDetailsScreen: React.FC = () => {
         <Image source={{ uri: eventData.imageUrl }} style={styles.bannerCanopyImage} />
         
         {/* Floating Quick Action Back Button */}
-        <TouchableOpacity style={styles.floatingCloseNode} onPress={() => navigation.goBack()} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.floatingCloseNode} onPress={() => router.back()} activeOpacity={0.8}>
           <Text style={styles.closeIconText}>←</Text>
         </TouchableOpacity>
 
@@ -218,7 +220,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: 'bold',
-    marginLeft: -2, // Visual balance centering patch
+    marginLeft: -2,
   },
   contentCoreBody: {
     padding: 20,

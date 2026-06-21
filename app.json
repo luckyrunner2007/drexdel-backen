@@ -27,5 +27,11 @@
       "bundleIdentifier": "com.drexdel.nativeapp",
       "buildNumber": "1.0.0"
     }
+  },
+  "expo": {
+    "scheme": "drexdel",
+    "web": {
+      "bundler": "metro"
+    }
   }
 }

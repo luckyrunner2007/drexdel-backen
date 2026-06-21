@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Dimensions, TextInput } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { GlobalNavigationProp } from '../../@types/navigation';
+import { useRouter } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
@@ -51,15 +50,15 @@ const MOCK_CHAT_ROOMS: ChatRoomSnippet[] = [
 ];
 
 export const ChatListScreen: React.FC = () => {
-  const navigation = useNavigation<GlobalNavigationProp>();
+  const router = useRouter();
   const [chatRooms] = useState<ChatRoomSnippet[]>(MOCK_CHAT_ROOMS);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Routes a user straight into their specific active bonding group chat chamber
   const handleRoomPress = (room: ChatRoomSnippet) => {
-    navigation.navigate('ActiveRoom', {
-      roomId: room.id,
-      roomName: room.name,
+    router.push({
+      pathname: `/room/${room.id}`,
+      params: { roomName: room.name }
     });
   };
 
@@ -170,7 +169,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#F5ECFF', // Soft Drexdel Purple background ring tint
+    backgroundColor: '#F5ECFF',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
@@ -211,7 +210,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   unreadCounterBox: {
-    backgroundColor: '#7B2CBF', // Drexdel Identity Purple
+    backgroundColor: '#7B2CBF',
     minWidth: 18,
     height: 18,
     borderRadius: 9,

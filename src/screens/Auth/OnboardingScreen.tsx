@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { EventCategory } from '../../@types/events';
-import { GlobalNavigationProp } from '../../@types/navigation';
+import { useRouter } from 'expo-router';
+
+const router = useRouter();
+router.push({ pathname: `/event/${item.id}`, params: { eventData: JSON.stringify(item) } });
 
 // Pulling dynamic device height to optimize button placement across different phones
 const { height } = Dimensions.get('window');
@@ -27,7 +29,8 @@ const CATEGORY_DATA: CategoryItem[] = [
 ];
 
 export const OnboardingScreen: React.FC = () => {
-  const navigation = useNavigation<GlobalNavigationProp>();
+  const router = useRouter();
+router.push({ pathname: `/event/${item.id}`, params: { eventData: JSON.stringify(item) } });
   const [selectedCategories, setSelectedCategories] = useState<EventCategory[]>([]);
 
   // Toggle function to add or remove category selections safely
@@ -47,7 +50,7 @@ export const OnboardingScreen: React.FC = () => {
     console.log('User Interests Saved:', selectedCategories);
     
     // Smoothly routes user past the Auth Stack directly into the primary main tabs
-    navigation.replace('MainTabs');
+    router.replace('/');
   };
 
   return (
