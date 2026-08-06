@@ -7,12 +7,15 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "start": "expo start",
-    "build": "npx expo export --platform web"
+    "build": "npx expo export --platform web",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@stripe/stripe-react-native": "0.38.6",
     "expo": "~52.0.0",
     "expo-asset": "^56.0.17",
     "expo-router": "~4.0.0",
+    "expo-secure-store": "~14.0.1",
     "expo-status-bar": "~2.0.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
@@ -27,5 +30,8 @@
     "@types/react": "~18.3.12",
     "babel-preset-expo": "~12.0.0",
     "typescript": "~5.3.3"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

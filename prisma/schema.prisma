@@ -1,0 +1,320 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER & AUTH
+// ============================================
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  phoneNumber       String?   @unique
+  passwordHash      String
+  name              String
+  username          String?   @unique
+  bio               String?   @db.Text
+  avatarUrl         String?
+  isVerified        Boolean   @default(false)
+  role              UserRole  @default(CASUAL)
+  
+  escrowBalance     Decimal   @default(0) @db.Decimal(10, 2)
+  devicePushToken   String?
+  
+  isAccountLocked   Boolean   @default(false)
+  failedLoginAttempts Int     @default(0)
+  lockedUntil       DateTime?
+  
+  // RELATIONS (back-relations added)
+  organizedEvents   Event[]         // <-- ADDED: Event.organizer points here
+  tickets           Ticket[]
+  payments          Payment[]
+  messages          Message[]
+  attendedEvents    UserAttendedEvent[]
+  following         UserFollow[]  @relation("Follower")  // follows this user has created
+  followedBy        UserFollow[]  @relation("Followee")  // follows where this user is the followee
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([email])
+  @@index([phoneNumber])
+  @@index([role])
+  @@index([createdAt])
+}
+
+enum UserRole {
+  CASUAL
+  ORGANISER
+  STAFF
+  ADMIN
+}
+
+// ============================================
+// EVENTS
+// ============================================
+model Event {
+  id              String    @id @default(cuid())
+  title           String
+  description     String    @db.Text
+  date            DateTime
+  endDate         DateTime?
+  location        String
+  latitude        Float?
+  longitude       Float?
+  category        String?
+  status          EventStatus @default(DRAFT)
+  
+  coverImageUrl   String?
+  galleryUrls     String[]  @default([])
+  
+  // Organizer relation
+  organizerId     String
+  organizer       User      @relation(fields: [organizerId], references: [id])
+  
+  // RELATIONS (back-relations added)
+  ticketTiers     TicketTier[]
+  tickets         Ticket[]        // <-- ADDED: Ticket.event points here
+  payments        Payment[]       // <-- ADDED: Payment.event points here
+  
+  totalCapacity   Int       @default(0)
+  ticketsSold     Int       @default(0)
+  grossRevenue    Decimal   @default(0) @db.Decimal(12, 2)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([status, date])
+  @@index([category, date])
+  @@index([latitude, longitude])
+  @@index([organizerId])
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+  COMPLETED
+}
+
+// ============================================
+// TICKET TIERS
+// ============================================
+model TicketTier {
+  id              String    @id @default(cuid())
+  eventId         String
+  event           Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  
+  name            String
+  price           Decimal   @db.Decimal(10, 2)
+  currency        String    @default("RWF")
+  
+  totalAllocation Int
+  ticketsSold     Int       @default(0)
+  isActive        Boolean   @default(true)
+  maxPerUser      Int       @default(10)
+  
+  // RELATIONS (back-relation added)
+  tickets         Ticket[]  // <-- ADDED: Ticket.tier points here
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([eventId, isActive])
+  @@unique([eventId, name])
+}
+
+// ============================================
+// TICKETS
+// ============================================
+model Ticket {
+  id                String    @id @default(cuid())
+  transactionId     String    @unique
+  
+  eventId           String
+  event             Event     @relation(fields: [eventId], references: [id])
+  
+  userId            String
+  user              User      @relation(fields: [userId], references: [id])
+  
+  tierId            String
+  tier              TicketTier @relation(fields: [tierId], references: [id])
+  
+  cryptographicToken String   @db.Text
+  qrCodeString      String    @db.Text
+  
+  status            TicketStatus @default(BOOKED)
+  usedAt            DateTime?
+  usedBy            String?
+  
+  syncVersion       Int       @default(1)
+  lastSyncedAt      DateTime?
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([userId, status])
+  @@index([eventId, status])
+  @@index([qrCodeString])
+}
+
+enum TicketStatus {
+  BOOKED
+  USED
+  CANCELLED
+  REFUNDED
+}
+
+// ============================================
+// PAYMENTS
+// ============================================
+model Payment {
+  id              String    @id @default(cuid())
+  transactionId   String    @unique
+  
+  eventId         String
+  event           Event     @relation(fields: [eventId], references: [id])
+  
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  
+  amount          Decimal   @db.Decimal(10, 2)
+  currency        String    @default("RWF")
+  
+  paymentMethod   PaymentMethod
+  provider        String
+  tierId          String?
+  
+  customerPhone   String?
+  customerEmail   String?
+  
+  gatewayReference String?
+  gatewayResponse Json?
+  
+  status          PaymentStatus @default(PENDING)
+  errorMessage    String?
+  
+  idempotencyKey  String    @unique
+  
+  webhookReceivedAt DateTime?
+  webhookPayload    Json?
+  
+  refundedAmount  Decimal?  @db.Decimal(10, 2)
+  refundedAt      DateTime?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([transactionId])
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+  @@index([idempotencyKey])
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  PAYPAL
+  MTN_MOMO
+  AIRTEL_MONEY
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+  DISPUTED
+}
+
+// ============================================
+// MESSAGES
+// ============================================
+model Message {
+  id            String    @id @default(cuid())
+  roomId        String
+  
+  senderId      String
+  sender        User      @relation(fields: [senderId], references: [id])
+  
+  content       String    @db.Text
+  messageType   MessageType @default(TEXT)
+  
+  isSoftDeleted Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedBy     String?
+  
+  pollData      Json?
+  reactions     Json?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([roomId, createdAt])
+  @@index([senderId, createdAt])
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  EVENT_CARD
+  POLL
+  SYSTEM
+}
+
+// ============================================
+// JOIN TABLES
+// ============================================
+model UserAttendedEvent {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  eventId     String
+  checkedInAt DateTime @default(now())
+  ticketId    String?
+  
+  @@unique([userId, eventId])
+  @@index([userId])
+}
+
+// ============================================
+// SOCIAL GRAPH (Event-Backed, like Instagram)
+// ============================================
+enum UserFollowStatus {
+  REQUESTED
+  ACCEPTED
+  BLOCKED
+}
+
+model UserFollow {
+  id         String          @id @default(cuid())
+  followerId String
+  follower   User            @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followeeId String
+  followee   User            @relation("Followee", fields: [followeeId], references: [id], onDelete: Cascade)
+
+  status     UserFollowStatus @default(ACCEPTED)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@unique([followerId, followeeId])
+  @@index([followeeId, status])
+  @@index([followerId, status])
+  @@index([status])
+}
+
+// ============================================
+// IDEMPOTENCY KEYS
+// ============================================
+model IdempotencyKey {
+  key       String   @id
+  scope     String
+  response  Json
+  expiresAt DateTime
+  
+  @@index([expiresAt])
+}
