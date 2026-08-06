@@ -3,7 +3,11 @@
     "name": "drexdelnative",
     "slug": "drexdel",
     "version": "1.0.0",
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "web": {
       "bundler": "metro"
     },
@@ -14,7 +18,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#7B2CBF"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "android": {
       "package": "com.drexdel.nativeapp",
       "versionCode": 1,
@@ -26,12 +32,15 @@
     "ios": {
       "bundleIdentifier": "com.drexdel.nativeapp",
       "buildNumber": "1.0.0"
-    }
-  },
-  "expo": {
+    },
     "scheme": "drexdel",
-    "web": {
-      "bundler": "metro"
-    }
+    "userInterfaceStyle": "automatic",
+    "plugins": [
+      [
+        "@stripe/stripe-react-native",
+        {}
+      ],
+      "expo-secure-store"
+    ]
   }
 }

@@ -6,5 +6,5 @@ import Constants from 'expo-constants';
  */
 
 // Safely extracts the configured store endpoint profile from app.json with verified route fallbacks
-export const API_BASE_URL = 
-  Constants.expoConfig?.extra?.apiBaseUrl || 'https://drexdel.com';
+const rawApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL || Constants.expoConfig?.extra?.apiBaseUrl || 'https://drexdel.com';
+export const API_BASE_URL = rawApiBaseUrl.replace(/\/v1\/?$/, '') + '/v1';

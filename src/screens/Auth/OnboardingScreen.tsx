@@ -1,15 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
-import { EventCategory } from '../../@types/events';
 import { useRouter } from 'expo-router';
+import { EventCategory } from '../../@types/events';
 
-const router = useRouter();
-router.push({ pathname: `/event/${item.id}`, params: { eventData: JSON.stringify(item) } });
-
-// Pulling dynamic device height to optimize button placement across different phones
 const { height } = Dimensions.get('window');
 
-// Defining the localized structure for our visual grid selector
 interface CategoryItem {
   id: EventCategory;
   label: string;
@@ -30,10 +25,8 @@ const CATEGORY_DATA: CategoryItem[] = [
 
 export const OnboardingScreen: React.FC = () => {
   const router = useRouter();
-router.push({ pathname: `/event/${item.id}`, params: { eventData: JSON.stringify(item) } });
   const [selectedCategories, setSelectedCategories] = useState<EventCategory[]>([]);
 
-  // Toggle function to add or remove category selections safely
   const handleCategoryPress = (categoryId: EventCategory) => {
     if (selectedCategories.includes(categoryId)) {
       setSelectedCategories(prev => prev.filter(id => id !== categoryId));
@@ -42,22 +35,16 @@ router.push({ pathname: `/event/${item.id}`, params: { eventData: JSON.stringify
     }
   };
 
-  // Triggers when the user clicks "Continue" to launch the main app tab stack
   const handleOnboardingComplete = () => {
     if (selectedCategories.length === 0) return;
-    
-    // In a future step, this array saves directly to the UserProfile database object
     console.log('User Interests Saved:', selectedCategories);
-    
-    // Smoothly routes user past the Auth Stack directly into the primary main tabs
-    router.replace('/');
+    router.replace('/(tabs)');
   };
 
   return (
     <View style={styles.masterContainer}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
-        {/* Branding & Subtitle Header */}
         <View style={styles.headerSection}>
           <Text style={styles.appName}>DREXDEL</Text>
           <Text style={styles.mainTitle}>What are you in the mood for?</Text>
@@ -66,23 +53,22 @@ router.push({ pathname: `/event/${item.id}`, params: { eventData: JSON.stringify
           </Text>
         </View>
 
-        {/* Interactive Grid Selection Map */}
         <View style={styles.gridContainer}>
-          {CATEGORY_DATA.map((item) => {
-            const isSelected = selectedCategories.includes(item.id);
+          {CATEGORY_DATA.map((categoryItem) => { // ✅ 'categoryItem' is the parameter name
+            const isSelected = selectedCategories.includes(categoryItem.id);
             return (
               <TouchableOpacity
-                key={item.id}
+                key={categoryItem.id}
                 style={[styles.tileItem, isSelected && styles.tileItemActive]}
-                onPress={() => handleCategoryPress(item.id)}
+                onPress={() => handleCategoryPress(categoryItem.id)}
                 activeOpacity={0.8}
               >
-                <Text style={styles.tileIcon}>{item.icon}</Text>
+                <Text style={styles.tileIcon}>{categoryItem.icon}</Text>
                 <Text style={[styles.tileLabel, isSelected && styles.tileLabelActive]}>
-                  {item.label}
+                  {categoryItem.label}
                 </Text>
                 <Text style={styles.tileDescription} numberOfLines={2}>
-                  {item.description}
+                  {categoryItem.description}
                 </Text>
               </TouchableOpacity>
             );
@@ -90,7 +76,6 @@ router.push({ pathname: `/event/${item.id}`, params: { eventData: JSON.stringify
         </View>
       </ScrollView>
 
-      {/* Persistent Bottom Action Bar */}
       <View style={styles.footerBar}>
         <TouchableOpacity
           style={[styles.submitButton, selectedCategories.length === 0 && styles.submitButtonDisabled]}
@@ -112,10 +97,10 @@ router.push({ pathname: `/event/${item.id}`, params: { eventData: JSON.stringify
 const styles = StyleSheet.create({
   masterContainer: {
     flex: 1,
-    backgroundColor: '#FAFAFE', // Light crisp background
+    backgroundColor: '#FAFAFE',
   },
   scrollContent: {
-    paddingBottom: 120, // Prevents footer overlapping grid contents
+    paddingBottom: 120,
   },
   headerSection: {
     paddingTop: height * 0.08,
@@ -125,7 +110,7 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#7B2CBF', // Drexdel Signature Purple
+    color: '#7B2CBF',
     letterSpacing: 2,
     marginBottom: 8,
   },
@@ -147,7 +132,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   tileItem: {
-    width: '47%', // Generates a precise twin-column structure with margin padding
+    width: '47%',
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E9ECEF',
@@ -162,7 +147,7 @@ const styles = StyleSheet.create({
   },
   tileItemActive: {
     borderColor: '#7B2CBF',
-    backgroundColor: '#F5ECFF', // Light subtle purple glow
+    backgroundColor: '#F5ECFF',
     borderWidth: 2,
   },
   tileIcon: {
@@ -218,4 +203,3 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
-

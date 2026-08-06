@@ -9,39 +9,56 @@ import {
   ActivityIndicator, 
   KeyboardAvoidingView, 
   Platform, 
-  ScrollView 
+  ScrollView,
+  Alert
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useUser } from '../../state/UserContext';
+import * as SecureStore from 'expo-secure-store';
+import { drexdelApiClient } from '../../services/api/client';
 
 const { height } = Dimensions.get('window');
 
-export const LoginScreen: React.FC = () => {
+export const SignupScreen: React.FC = () => {
   const router = useRouter();
-  const { loginUser } = useUser();
   
-  const [identity, setIdentity] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleLogin = async () => {
+  const handleSignup = async () => {
     setErrorMessage(null);
 
-    if (!identity.trim() || !password.trim()) {
-      setErrorMessage('Please enter both your credentials and password.');
+    // Validation
+    if (!fullName.trim() || !email.trim() || !phone.trim() || !password.trim()) {
+      setErrorMessage('Please fill in all required fields.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrorMessage('Passwords do not match.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrorMessage('Password must be at least 6 characters.');
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      const success = await loginUser(identity.trim(), password);
-      if (!success) {
-        setErrorMessage('Invalid credentials. Please try again.');
+      const response = await drexdelApiClient.signup({ name: fullName.trim(), email: email.trim(), phoneNumber: phone.trim() || undefined, password });
+      if (!response.success || !response.data) {
+        setErrorMessage(response.data === null ? response.message : 'Unable to create account.');
         return;
       }
-      router.replace('/(tabs)');
+      await SecureStore.setItemAsync('drexdel_token', response.data.token);
+      drexdelApiClient.setAuthToken(response.data.token);
+      router.replace('/(auth)/onboarding');
     } finally {
       setIsSubmitting(false);
     }
@@ -54,13 +71,15 @@ export const LoginScreen: React.FC = () => {
     >
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         
+        {/* Brand Section */}
         <View style={styles.brandContainer}>
           <Text style={styles.brandLogo}>DREXDEL</Text>
-          <Text style={styles.brandTagline}>Your direct path to the city's heartbeat.</Text>
+          <Text style={styles.brandTagline}>Join the city's heartbeat.</Text>
         </View>
 
+        {/* Form Container */}
         <View style={styles.formContainer}>
-          <Text style={styles.formTitle}>Welcome Back</Text>
+          <Text style={styles.formTitle}>Create Account</Text>
 
           {errorMessage && (
             <View style={styles.errorBox}>
@@ -68,60 +87,84 @@ export const LoginScreen: React.FC = () => {
             </View>
           )}
 
-          <Text style={styles.inputLabel}>Email Address or Mobile Number</Text>
+          <Text style={styles.inputLabel}>Full Name</Text>
           <TextInput
             style={styles.textInput}
-            placeholder="Enter email or phone"
+            placeholder="Enter your full name"
             placeholderTextColor="#ADB5BD"
-            value={identity}
-            onChangeText={setIdentity}
-            autoCapitalize="none"
-            autoCorrect={false}
+            value={fullName}
+            onChangeText={setFullName}
+            autoCapitalize="words"
             editable={!isSubmitting}
           />
 
-          <View style={styles.passwordHeaderRow}>
-            <Text style={styles.inputLabel}>Password</Text>
-            <TouchableOpacity 
-              disabled={isSubmitting}
-              onPress={() => console.log('Forgot password')}
-            >
-              <Text style={styles.forgotPasswordLink}>Forgot Password?</Text>
-            </TouchableOpacity>
-          </View>
-          
+          <Text style={styles.inputLabel}>Email Address</Text>
           <TextInput
             style={styles.textInput}
-            placeholder="Enter secure password"
+            placeholder="name@example.com"
+            placeholderTextColor="#ADB5BD"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            editable={!isSubmitting}
+          />
+
+          <Text style={styles.inputLabel}>Phone Number</Text>
+          <TextInput
+            style={styles.textInput}
+            placeholder="+2507XXXXXXXX"
+            placeholderTextColor="#ADB5BD"
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+            editable={!isSubmitting}
+          />
+
+          <Text style={styles.inputLabel}>Password</Text>
+          <TextInput
+            style={styles.textInput}
+            placeholder="Create a secure password"
             placeholderTextColor="#ADB5BD"
             secureTextEntry={true}
-            autoCapitalize="none"
-            autoCorrect={false}
             value={password}
             onChangeText={setPassword}
             editable={!isSubmitting}
           />
 
+          <Text style={styles.inputLabel}>Confirm Password</Text>
+          <TextInput
+            style={styles.textInput}
+            placeholder="Re-enter your password"
+            placeholderTextColor="#ADB5BD"
+            secureTextEntry={true}
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            editable={!isSubmitting}
+          />
+
+          {/* Signup Button */}
           <TouchableOpacity 
-            style={[styles.loginButton, isSubmitting && styles.loginButtonActive]} 
-            onPress={handleLogin}
+            style={[styles.signupButton, isSubmitting && styles.signupButtonActive]} 
+            onPress={handleSignup}
             disabled={isSubmitting}
             activeOpacity={0.9}
           >
             {isSubmitting ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
-              <Text style={styles.loginButtonText}>Sign In</Text>
+              <Text style={styles.signupButtonText}>Create Account</Text>
             )}
           </TouchableOpacity>
 
-          <View style={styles.registrationFooter}>
-            <Text style={styles.footerBaseText}>New to Drexdel? </Text>
+          {/* Login Link */}
+          <View style={styles.loginFooter}>
+            <Text style={styles.footerBaseText}>Already have an account? </Text>
             <TouchableOpacity 
               disabled={isSubmitting}
-              onPress={() => router.push('/(auth)/signup')}
+              onPress={() => router.push('/(auth)/login')}
             >
-              <Text style={styles.signupActionLink}>Create Account</Text>
+              <Text style={styles.loginActionLink}>Sign In</Text>
             </TouchableOpacity>
           </View>
 
@@ -207,20 +250,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     fontSize: 14,
     color: '#212529',
-    marginBottom: 20,
+    marginBottom: 16,
   },
-  passwordHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  forgotPasswordLink: {
-    fontSize: 12,
-    color: '#7B2CBF',
-    fontWeight: '600',
-  },
-  loginButton: {
+  signupButton: {
     backgroundColor: '#7B2CBF',
     borderRadius: 10,
     height: 52,
@@ -233,15 +265,15 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
   },
-  loginButtonActive: {
+  signupButtonActive: {
     backgroundColor: '#9D4EDD',
   },
-  loginButtonText: {
+  signupButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
   },
-  registrationFooter: {
+  loginFooter: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
@@ -251,7 +283,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6C757D',
   },
-  signupActionLink: {
+  loginActionLink: {
     fontSize: 13,
     color: '#7B2CBF',
     fontWeight: '700',

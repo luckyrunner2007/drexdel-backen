@@ -2,9 +2,11 @@ import { Stack } from 'expo-router';
 import { UserProvider } from '../src/state/UserContext';
 import { EventProvider } from '../src/state/EventContext';
 import { LiveChatProvider } from '../src/state/LiveChatContext';
+import { StripeProvider } from '../src/components/StripeProvider';
 
 export default function RootLayout() {
   return (
+    <StripeProvider>
     <UserProvider>
       <EventProvider>
         <LiveChatProvider>
@@ -12,6 +14,7 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="(auth)" />
             <Stack.Screen name="event/[id]" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="profile/[id]" options={{ presentation: 'modal' }} />
             <Stack.Screen name="checkout" options={{ presentation: 'modal' }} />
             <Stack.Screen name="receipt" options={{ presentation: 'modal' }} />
             <Stack.Screen name="room/[id]" options={{ presentation: 'modal' }} />
@@ -19,5 +22,6 @@ export default function RootLayout() {
         </LiveChatProvider>
       </EventProvider>
     </UserProvider>
+    </StripeProvider>
   );
 }
