@@ -19,10 +19,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="media" options={{ title: "Media", tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>📸</Text>, }} />
+            <Tabs.Screen name="saved" options={{ title: "Saved", tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>🔖</Text> }} />
+      <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
           tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>👤</Text>,
+        }}
+      />
+      <Tabs.Screen
+        name="wallet"
+        options={{
+          title: 'Wallet',
+          tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>🎟️</Text>,
         }}
       />
     </Tabs>

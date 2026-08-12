@@ -40,7 +40,18 @@ export interface EncryptedTicket {
   purchaseTimestamp: string;
   cryptographicToken: string; // The rolling 30-second token for offline validation
   qrCodeString: string;       // Unique hashed string to render the QR code
-  status: 'booked' | 'checked_in' | 'refunded';
+  status: 'booked' | 'checked_in' | 'refunded' | 'used';
+  event: {
+    title: string;
+    date: string;
+    location: string;
+    coverImageUrl?: string;
+  };
+  tier: {
+    name: string;
+    price: number;
+    currency: string;
+  };
 }
 
 // 3. MEDIA & SOCIAL PROOF NODES
@@ -87,6 +98,61 @@ export interface EventLocation {
   longitude: number; // GPS decimal coordinate
 }
 
+// Media attachment node inside a chat message.
+export interface ChatAttachment {
+  type: 'image' | 'video';
+  url: string;
+  thumbnailUrl?: string;
+  width?: number;
+  height?: number;
+  durationSeconds?: number;
+}
+
+// ---------------------------------------------------------------------------
+// REAL-TIME VOICE / VIDEO CALLS (WebRTC signaling over the chat socket)
+// ---------------------------------------------------------------------------
+export type CallMode = 'audio' | 'video';
+export type CallStatus = 'ringing' | 'in-progress' | 'ended' | 'rejected' | 'cancelled' | 'failed';
+
+export interface CallSession {
+  id: string;
+  roomId: string;
+  callerUserId: string;
+  calleeUserId: string;
+  mode: CallMode;
+  status: CallStatus;
+  isIncoming: boolean; // true when THIS device is the callee
+  startedAt: string;
+  answeredAt?: string;
+  endedAt?: string;
+  /** Local WebRTC sink the active state machine uses to plumb SDP/ICE. */
+  signaling?: {
+    remoteSdp?: any;
+    remoteIce?: any[];
+    localSdp?: any;
+  };
+}
+
+export interface IncomingCallPayload {
+  roomId: string;
+  callId: string;
+  callerUserId: string;
+  calleeUserId: string;
+  mode: CallMode;
+  sdp?: any;
+  startedAt: string;
+}
+
+export interface CallSignalingEvent {
+  roomId: string;
+  callId: string;
+  userId: string;
+  sdp?: any;
+  candidate?: any;
+  mode?: CallMode;
+  rejectedAt?: string;
+}
+
 export interface DrexdelEvent {
   id: string;
   organizerId: string;
@@ -121,9 +187,21 @@ export interface ChatMessage {
   senderId: string;
   senderName: string;
   senderAvatar?: string;
+  senderUsername?: string;
   text?: string;
   sharedEventId?: string; // If a user drops an event card into the chat room
   attachedPoll?: VotingPoll; // If a user launches a voting poll
+  messageType?: 'TEXT' | 'IMAGE' | 'EVENT_CARD' | 'POLL' | 'SYSTEM';
+  attachments?: ChatAttachment[];
+  reactions?: Record<string, string[]>; // emoji -> userId[]
+  isEdited?: boolean; // set when a message has been edited
+  editedAt?: string; // ISO timestamp of the last edit
+  callData?: {
+    callId?: string;
+    mode?: 'audio' | 'video';
+    durationSeconds?: number;
+    status?: 'completed' | 'missed' | 'rejected';
+  };
   createdAt: string;
 }
 
