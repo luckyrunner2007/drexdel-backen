@@ -36,6 +36,19 @@ export const MTN_MOMO_ENVIRONMENT = process.env.MTN_MOMO_ENVIRONMENT || 'sandbox
 export const TELECOM_WEBHOOK_SECRET = process.env.TELECOM_WEBHOOK_SECRET || '';
 export const SENTRY_DSN = process.env.SENTRY_DSN || '';
 
+// Email delivery (Nodemailer SMTP — SendGrid / SES / Resend / any relay)
+export const SMTP_HOST = process.env.SMTP_HOST || '';
+export const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587', 10);
+export const SMTP_SECURE = process.env.SMTP_SECURE === 'true';
+export const SMTP_USER = process.env.SMTP_USER || '';
+export const SMTP_PASS = process.env.SMTP_PASS || '';
+export const SMTP_FROM = process.env.SMTP_FROM || 'Drexdel <no-reply@drexdel.app>';
+
+// SMS delivery (Twilio)
+export const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID || '';
+export const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN || '';
+export const TWILIO_FROM_NUMBER = process.env.TWILIO_FROM_NUMBER || '';
+
 export function validateRuntimeEnv(): void {
   requireEnv('JWT_SECRET');
 }

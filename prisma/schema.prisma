@@ -1,10 +1,12 @@
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  schemas  = ["public", "auth"]
 }
 
 // ============================================
@@ -24,6 +26,7 @@ model User {
   
   escrowBalance     Decimal   @default(0) @db.Decimal(10, 2)
   devicePushToken   String?
+  presenceVisibility PresenceVisibility @default(FRIENDS_ONLY)
   
   isAccountLocked   Boolean   @default(false)
   failedLoginAttempts Int     @default(0)
@@ -37,14 +40,27 @@ model User {
   attendedEvents    UserAttendedEvent[]
   following         UserFollow[]  @relation("Follower")  // follows this user has created
   followedBy        UserFollow[]  @relation("Followee")  // follows where this user is the followee
+  conversationMemberships ConversationMember[]
+
+   posts             Post[]
+   comments          Comment[]
+   likes             Like[]
+   sharesGiven       Share[] @relation("SharesGiven")
+   sharesReceived    Share[] @relation("SharesReceived")
+  savedPosts          SavedPost[]
+  reportsWritten      PostReport[]
+  reportsReceived     UserReport[] @relation("ReportedUser")
+     userReports          UserReport[] @relation("UserReports")
+   errorReports          ErrorReport[]
   
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  @@index([email])
-  @@index([phoneNumber])
-  @@index([role])
-  @@index([createdAt])
+  
+  
+  
+  
+  @@schema("public")
 }
 
 enum UserRole {
@@ -52,6 +68,36 @@ enum UserRole {
   ORGANISER
   STAFF
   ADMIN
+  @@schema("public")
+}
+
+enum PresenceVisibility {
+  PUBLIC
+  FRIENDS_ONLY
+  HIDDEN
+  @@schema("public")
+}
+
+// ============================================
+// ERROR REPORTING
+// ============================================
+model ErrorReport {
+  id            String   @id @default(cuid())
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id])
+  message       String   @db.Text
+  stack         String?  @db.Text
+  componentStack String? @db.Text
+  platform      String?
+  appVersion    String?
+  deviceInfo    Json?
+  url           String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+  @@index([platform])
+  @@schema("public")
 }
 
 // ============================================
@@ -80,6 +126,8 @@ model Event {
   ticketTiers     TicketTier[]
   tickets         Ticket[]        // <-- ADDED: Ticket.event points here
   payments        Payment[]       // <-- ADDED: Payment.event points here
+  /// Back-relation: media posts attached to this event (past memories or upcoming reels).
+  posts             Post[]
   
   totalCapacity   Int       @default(0)
   ticketsSold     Int       @default(0)
@@ -88,10 +136,11 @@ model Event {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  @@index([status, date])
-  @@index([category, date])
-  @@index([latitude, longitude])
-  @@index([organizerId])
+  
+  
+  
+  
+  @@schema("public")
 }
 
 enum EventStatus {
@@ -99,6 +148,7 @@ enum EventStatus {
   PUBLISHED
   CANCELLED
   COMPLETED
+  @@schema("public")
 }
 
 // ============================================
@@ -124,8 +174,9 @@ model TicketTier {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  @@index([eventId, isActive])
+  
   @@unique([eventId, name])
+  @@schema("public")
 }
 
 // ============================================
@@ -157,9 +208,10 @@ model Ticket {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  @@index([userId, status])
-  @@index([eventId, status])
-  @@index([qrCodeString])
+  
+  
+  
+  @@schema("public")
 }
 
 enum TicketStatus {
@@ -167,6 +219,7 @@ enum TicketStatus {
   USED
   CANCELLED
   REFUNDED
+  @@schema("public")
 }
 
 // ============================================
@@ -209,10 +262,11 @@ model Payment {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  @@index([transactionId])
-  @@index([status, createdAt])
-  @@index([userId, createdAt])
-  @@index([idempotencyKey])
+  
+  
+  
+  
+  @@schema("public")
 }
 
 enum PaymentMethod {
@@ -220,6 +274,7 @@ enum PaymentMethod {
   PAYPAL
   MTN_MOMO
   AIRTEL_MONEY
+  @@schema("public")
 }
 
 enum PaymentStatus {
@@ -229,33 +284,113 @@ enum PaymentStatus {
   FAILED
   REFUNDED
   DISPUTED
+  @@schema("public")
+}
+
+// ============================================
+// CONVERSATIONS (DMs + future group chats)
+// ============================================
+enum ConversationType {
+  DIRECT
+  GROUP
+  @@schema("public")
+}
+
+enum ConversationMemberRole {
+  ADMIN
+  MEMBER
+  @@schema("public")
+}
+
+model Conversation {
+  id                 String             @id @default(cuid())
+  type               ConversationType   @default(DIRECT)
+  /// For DIRECT chats: sorted "userIdA:userIdB" pair key for unique lookup.
+  pairKey            String?            @unique
+  title              String?
+  /// Group avatar image URL (null for DMs).
+  avatarUrl          String?
+  /// Group description (null for DMs).
+  description        String?            @db.Text
+  /// Whether the group is discoverable/joinable by non-members.
+  isPublic           Boolean            @default(false)
+  /// Creator / owner of the conversation (for groups).
+  createdBy          String?
+  lastMessageAt      DateTime?
+  lastMessagePreview String?
+
+  members            ConversationMember[]
+  messages           Message[]
+
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  
+  
+  
+  @@schema("public")
+}
+
+model ConversationMember {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Last time this member opened / marked the thread read.
+  lastReadAt     DateTime?
+  muted          Boolean      @default(false)
+  joinedAt       DateTime     @default(now())
+  /// Role within the conversation (ADMIN for group creator, MEMBER for others).
+  role           ConversationMemberRole @default(MEMBER)
+
+  @@unique([conversationId, userId])
+  
+  
+  @@schema("public")
 }
 
 // ============================================
 // MESSAGES
 // ============================================
 model Message {
-  id            String    @id @default(cuid())
-  roomId        String
-  
-  senderId      String
-  sender        User      @relation(fields: [senderId], references: [id])
-  
-  content       String    @db.Text
-  messageType   MessageType @default(TEXT)
-  
-  isSoftDeleted Boolean   @default(false)
-  deletedAt     DateTime?
-  deletedBy     String?
-  
-  pollData      Json?
-  reactions     Json?
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  /// Event bond-room channel ("event_{eventId}"). Null for DM messages.
+  roomId         String?
+  /// DM / conversation thread. Null for event bond-room messages.
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
-  @@index([roomId, createdAt])
-  @@index([senderId, createdAt])
+  senderId       String
+  sender         User      @relation(fields: [senderId], references: [id])
+
+  content        String    @db.Text
+  messageType    MessageType @default(TEXT)
+
+  attachments    Json?
+  callData       Json?
+
+  isSoftDeleted  Boolean   @default(false)
+  deletedAt      DateTime?
+  deletedBy      String?
+
+  isEdited       Boolean   @default(false)
+  editedAt       DateTime?
+
+  pollData       Json?
+  reactions      Json?
+
+  deliveredAt    DateTime?
+  readAt         DateTime?
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  
+  
+  
+  @@schema("public")
 }
 
 enum MessageType {
@@ -264,6 +399,7 @@ enum MessageType {
   EVENT_CARD
   POLL
   SYSTEM
+  @@schema("public")
 }
 
 // ============================================
@@ -278,7 +414,8 @@ model UserAttendedEvent {
   ticketId    String?
   
   @@unique([userId, eventId])
-  @@index([userId])
+  
+  @@schema("public")
 }
 
 // ============================================
@@ -288,6 +425,7 @@ enum UserFollowStatus {
   REQUESTED
   ACCEPTED
   BLOCKED
+  @@schema("public")
 }
 
 model UserFollow {
@@ -302,9 +440,10 @@ model UserFollow {
   updatedAt  DateTime        @updatedAt
 
   @@unique([followerId, followeeId])
-  @@index([followeeId, status])
-  @@index([followerId, status])
-  @@index([status])
+  
+  
+  
+  @@schema("public")
 }
 
 // ============================================
@@ -316,5 +455,167 @@ model IdempotencyKey {
   response  Json
   expiresAt DateTime
   
-  @@index([expiresAt])
+  
+  @@schema("public")
+}
+
+// ============================================
+// MEDIA POSTS / UPLOAD FEATURE
+// ============================================
+enum MediaType {
+  IMAGE
+  VIDEO
+  @@schema("public")
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+  @@schema("public")
+}
+
+model Post {
+  id                String      @id @default(cuid())
+  userId            String
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventId           String?
+  event             Event?      @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  mediaUrl          String      @db.Text
+  mediaType         MediaType
+  thumbnailUrl      String?     @db.Text
+  durationSeconds   Int?
+  caption           String      @db.Text
+  status            PostStatus  @default(DRAFT)
+  isPastEventMemory     Boolean   @default(false)
+  isUpcomingEventReel   Boolean   @default(false)
+  isSoftDeleted     Boolean     @default(false)
+  deletedAt         DateTime?
+  deletedBy         String?
+  likes             Like[]
+  comments          Comment[]
+  shares            Share[]
+  isEdited          Boolean     @default(false)
+  editedAt          DateTime?
+  isReported        Boolean     @default(false)
+  saves             SavedPost[]
+  reports           PostReport[]
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  
+  
+  
+  
+  
+  @@schema("public")
+}
+
+model Comment {
+  id              String    @id @default(cuid())
+  postId          String
+  post            Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content         String    @db.Text
+  parentCommentId String?
+  parentComment   Comment?  @relation("CommentReplies", fields: [parentCommentId], references: [id])
+  replies         Comment[] @relation("CommentReplies")
+  isSoftDeleted   Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  
+  @@schema("public")
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@unique([postId, userId])
+  
+  
+  
+  @@schema("public")
+}
+
+model Share {
+  id         String   @id @default(cuid())
+  postId     String
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  sharedById String
+  sharedBy   User     @relation("SharesGiven", fields: [sharedById], references: [id], onDelete: Cascade)
+  sharedToId String
+  sharedTo   User     @relation("SharesReceived", fields: [sharedToId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  @@unique([postId, sharedById, sharedToId])
+  
+  
+  @@schema("public")
+}
+
+model SavedPost {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+  @@index([userId])
+  @@index([postId])
+  @@schema("public")
+}
+
+model PostReport {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reason    PostReportReason
+  details   String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([postId])
+  @@index([userId])
+  @@schema("public")
+}
+
+
+model UserReport {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User      @relation("UserReports", fields: [userId], references: [id], onDelete: Cascade)
+  targetId  String
+  target    User      @relation("ReportedUser", fields: [targetId], references: [id], onDelete: Cascade)
+  reason    UserReportReason
+  details   String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([targetId])
+  @@schema("public")
+}
+
+enum UserReportReason {
+  SPAM
+  HARMFUL
+  IMPERSONATION
+  COPYRIGHT
+  OTHER
+  @@schema("public")
+}
+
+enum PostReportReason {
+  SPAM
+  HARMFUL
+  IMPERSONATION
+  COPYRIGHT
+  OTHER
+  @@schema("public")
 }

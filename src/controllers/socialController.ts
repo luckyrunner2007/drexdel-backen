@@ -19,6 +19,16 @@ export const updateMeSchema = z.object({
   avatarUrl: z.string().trim().url().max(1000).optional(),
 });
 
+export const searchUsersSchema = z.object({
+  query: z.string().trim().min(1).max(50),
+  limit: z.coerce.number().int().positive().max(50).optional(),
+});
+
+export const reportUserSchema = z.object({
+  reason: z.enum(['SPAM', 'HARMFUL', 'IMPERSONATION', 'COPYRIGHT', 'OTHER']),
+  details: z.string().trim().max(500).optional(),
+});
+
 class SocialController {
   private safeProfile(user: any, extra: Record<string, unknown> = {}) {
     return {
@@ -230,6 +240,68 @@ class SocialController {
     }
   }
 
+  /** GET /v1/users/search?q=query - search users by name or username. */
+  async searchUsers(req: Request, res: Response): Promise<void> {
+    try {
+      const viewerId = req.user!.sub;
+      const query = String((req.query as any).query || '').trim();
+      const limit = Math.min(parseInt(String((req.query as any).limit || '20'), 10) || 20, 50);
+
+      if (query.length < 1) {
+        res.status(400).json({ error: 'Search query must be at least 1 character.' });
+        return;
+      }
+
+      const isUsername = query.startsWith('@');
+      const searchTerm = isUsername ? query.slice(1) : query;
+
+      const where: any = {
+        AND: [
+          { id: { not: viewerId } },
+          {
+            OR: [
+              { name: { contains: searchTerm, mode: 'insensitive' } },
+              { username: { contains: searchTerm, mode: 'insensitive' } },
+            ],
+          },
+        ],
+      };
+
+      const users = await prisma.user.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          username: true,
+          avatarUrl: true,
+          isVerified: true,
+        },
+        take: limit,
+      });
+
+      // Attach relationship info for each result.
+      const results = await Promise.all(
+        users.map(async (u) => {
+          const rel = await prisma.userFollow.findFirst({
+            where: { followerId: viewerId, followeeId: u.id },
+          });
+          return {
+            ...u,
+            relationship: {
+              isFollowing: !!rel && rel.status === 'ACCEPTED',
+              isBlocked: !!rel && rel.status === 'BLOCKED',
+            },
+          };
+        })
+      );
+
+      res.status(200).json({ success: true, users: results });
+    } catch (error) {
+      logger.error({ err: error, path: req.path }, 'Search users error');
+      res.status(500).json({ error: 'Failed to search users' });
+    }
+  }
+
   /** GET /v1/users/me/suggestions - ranked by shared events + mutual friends. */
   async getSuggestions(req: Request, res: Response): Promise<void> {
     try {
@@ -272,6 +344,185 @@ class SocialController {
     } catch (error) {
       logger.error({ err: error, path: req.path }, 'Suggestions error');
       res.status(500).json({ error: 'Failed to load suggestions' });
+    }
+  }
+
+  /** POST /v1/users/:id/block - block a user. */
+  async blockUser(req: Request, res: Response): Promise<void> {
+    try {
+      const blockerId = req.user!.sub;
+      const targetId = String(req.params.id || '');
+
+      if (blockerId === targetId) {
+        res.status(400).json({ error: 'You cannot block yourself.' });
+        return;
+      }
+
+      const target = await prisma.user.findUnique({ where: { id: targetId } });
+      if (!target) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
+
+      const existing = await prisma.userFollow.findFirst({
+        where: { followerId: blockerId, followeeId: targetId },
+      });
+
+      if (existing) {
+        if (existing.status === 'BLOCKED') {
+          res.status(200).json({ success: true, status: 'BLOCKED' });
+          return;
+        }
+        await prisma.userFollow.update({
+          where: { id: existing.id },
+          data: { status: 'BLOCKED' },
+        });
+      } else {
+        await prisma.userFollow.create({
+          data: { followerId: blockerId, followeeId: targetId, status: 'BLOCKED' },
+        });
+      }
+
+      res.status(201).json({ success: true, status: 'BLOCKED' });
+    } catch (error) {
+      logger.error({ err: error, path: req.path }, 'Block user error');
+      res.status(500).json({ error: 'Failed to block user' });
+    }
+  }
+
+  /** DELETE /v1/users/:id/block - unblock a user. */
+  async unblockUser(req: Request, res: Response): Promise<void> {
+    try {
+      const unblockerId = req.user!.sub;
+      const targetId = String(req.params.id || '');
+
+      const existing = await prisma.userFollow.findFirst({
+        where: { followerId: unblockerId, followeeId: targetId, status: 'BLOCKED' },
+      });
+
+      if (!existing) {
+        res.status(404).json({ error: 'No active block found.' });
+        return;
+      }
+
+      await prisma.userFollow.delete({ where: { id: existing.id } });
+      res.status(200).json({ success: true });
+    } catch (error) {
+      logger.error({ err: error, path: req.path }, 'Unblock user error');
+      res.status(500).json({ error: 'Failed to unblock user' });
+    }
+  }
+
+  /** POST /v1/users/:id/report - report a user. */
+  async reportUser(req: Request, res: Response): Promise<void> {
+    try {
+      const reporterId = req.user!.sub;
+      const targetId = String(req.params.id || '');
+      const body = (req as any).validatedBody || reportUserSchema.parse(req.body);
+
+      if (reporterId === targetId) {
+        res.status(400).json({ error: 'You cannot report yourself.' });
+        return;
+      }
+
+      const target = await prisma.user.findUnique({ where: { id: targetId } });
+      if (!target) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
+
+      const existing = await prisma.userReport.findFirst({
+        where: { userId: reporterId, targetId, reason: body.reason },
+      });
+
+      if (existing) {
+        res.status(200).json({ success: true, data: { reported: true, id: existing.id } });
+        return;
+      }
+
+      const report = await prisma.userReport.create({
+        data: {
+          userId: reporterId,
+          targetId,
+          reason: body.reason,
+          details: body.details || null,
+        },
+      });
+
+      res.status(201).json({ success: true, data: { id: report.id, reported: true } });
+    } catch (error) {
+      logger.error({ err: error, path: req.path }, 'Report user error');
+      res.status(500).json({ error: 'Failed to report user' });
+    }
+  }
+
+  /** GET /v1/users/:id/followers - list followers of a user. */
+  async getFollowers(req: Request, res: Response): Promise<void> {
+    try {
+      const targetId = String(req.params.id || '');
+      const viewerId = req.user!.sub;
+      const limit = Math.min(parseInt(String(req.query.limit || '50'), 10) || 50, 100);
+      const cursor = String(req.query.cursor || '');
+
+      const where: any = { followeeId: targetId, status: 'ACCEPTED' };
+      if (cursor) {
+        where.id = { lt: cursor };
+      }
+
+      const follows = await prisma.userFollow.findMany({
+        where,
+        include: { follower: { select: { id: true, name: true, username: true, avatarUrl: true, isVerified: true } } },
+        take: limit + 1,
+        orderBy: { createdAt: 'desc' },
+      });
+
+      const nextCursor = follows.length > limit ? follows[follows.length - 1].id : null;
+      const items = follows.slice(0, limit).map((f) => ({
+        ...f.follower,
+        relationship: f.followerId === viewerId
+          ? { isSelf: true, isFollowing: false }
+          : undefined,
+      }));
+
+      res.status(200).json({ success: true, users: items, nextCursor });
+    } catch (error) {
+      logger.error({ err: error, path: req.path }, 'Get followers error');
+      res.status(500).json({ error: 'Failed to load followers' });
+    }
+  }
+
+  /** GET /v1/users/:id/following - list users that a user follows. */
+  async getFollowing(req: Request, res: Response): Promise<void> {
+    try {
+      const targetId = String(req.params.id || '');
+      const viewerId = req.user!.sub;
+      const limit = Math.min(parseInt(String(req.query.limit || '50'), 10) || 50, 100);
+      const cursor = String(req.query.cursor || '');
+
+      const where: any = { followerId: targetId, status: 'ACCEPTED' };
+      if (cursor) {
+        where.id = { lt: cursor };
+      }
+
+      const follows = await prisma.userFollow.findMany({
+        where,
+        include: { followee: { select: { id: true, name: true, username: true, avatarUrl: true, isVerified: true } } },
+        take: limit + 1,
+        orderBy: { createdAt: 'desc' },
+      });
+
+      const nextCursor = follows.length > limit ? follows[follows.length - 1].id : null;
+      const items = follows.slice(0, limit).map((f) => ({
+        ...f.followee,
+        relationship: f.followeeId === viewerId
+          ? { isSelf: true, isFollowing: false }
+          : undefined,
+      }));
+
+      res.status(200).json({ success: true, users: items, nextCursor });
+    } catch (error) {
+      logger.error({ err: error, path: req.path }, 'Get following error');
+      res.status(500).json({ error: 'Failed to load following' });
     }
   }
 }

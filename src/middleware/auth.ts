@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { logger } from '../config/logger';
 import { prisma } from '../config/db';
+import { cacheGet } from '../config/redis';
 
 // Support JWKS verification when SUPABASE_JWKS_URL is provided
 // Use a runtime require to avoid adding types dependency for `jwks-rsa`.
@@ -67,6 +68,13 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
   try {
     const token = authHeader.slice(7);
+
+  // Check if token has been blacklisted (logout)
+  const blacklisted = await cacheGet('token:blacklist:' + token);
+  if (blacklisted) {
+    res.status(401).json({ error: 'Token has been revoked' });
+    return;
+  }
 
     // Prefer HMAC secret verification when available; only use JWKS when
     // the token header indicates an RSA algorithm (e.g. RS256) and a JWKS
