@@ -24,6 +24,9 @@ export type RootStackParamList = {
   EventDetails: { eventId: string; eventData?: DrexdelEvent };
   Checkout: { eventId: string; eventTitle: string; selectedTierId: string; selectedTierName: string; selectedTierPrice: number; currency: 'USD' | 'RWF' | 'EUR'; ticketQuantity: number };
   TicketReceipt: { ticketId: string; encryptedToken: string; eventTitle?: string; tierName?: string; amount?: number; currency?: 'USD' | 'RWF' | 'EUR' };
+  UserSearch: { initialQuery?: string };
+  FollowersList: { userId: string; userName: string };
+  FollowingList: { userId: string; userName: string };
 };
 
 // 2. AUTHENTICATION FLOW ROUTING (No parameters needed for basic views)

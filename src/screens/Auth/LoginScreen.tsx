@@ -84,7 +84,7 @@ export const LoginScreen: React.FC = () => {
             <Text style={styles.inputLabel}>Password</Text>
             <TouchableOpacity 
               disabled={isSubmitting}
-              onPress={() => console.log('Forgot password')}
+                          onPress={() => router.push('/(auth)/password-reset')}
             >
               <Text style={styles.forgotPasswordLink}>Forgot Password?</Text>
             </TouchableOpacity>

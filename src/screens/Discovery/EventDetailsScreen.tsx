@@ -67,9 +67,9 @@ export const EventDetailsScreen: React.FC = () => {
         eventTitle: eventData.title,
         selectedTierId: selectedTierId,
         selectedTierName: activeTier?.name || 'Ticket',
-        selectedTierPrice: String(activeTier?.price || 0),
+        selectedTierPrice: activeTier?.price || 0,
         currency: activeTier?.currency || 'USD',
-        ticketQuantity: '1'
+        ticketQuantity: 1,
       }
     });
   };

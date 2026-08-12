@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Dimensions } from 'react-native';
+import { useRouter } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
@@ -49,6 +50,7 @@ const MOCK_HISTORY_DATA: AttendedEventNode[] = [
 ];
 
 export const HistoryVault: React.FC = () => {
+  const router = useRouter();
   const [attendedHistory] = useState<AttendedEventNode[]>(MOCK_HISTORY_DATA);
 
   const renderHistoryItem = ({ item, index }: { item: AttendedEventNode; index: number }) => {
@@ -97,9 +99,16 @@ export const HistoryVault: React.FC = () => {
     <View style={styles.masterVaultContainer}>
       {/* Vault Summary Banner layout block */}
       <View style={styles.summaryBanner}>
-        <Text style={styles.bannerCounterTitle}>{attendedHistory.length}</Text>
-        <Text style={styles.bannerCounterLabel}>Memories Captured in the Vault</Text>
-        <Text style={styles.bannerSubtitle}>Your secure historical timeline of bonding experiences and summits [2].</Text>
+        <View style={styles.bannerTopRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.bannerCounterTitle}>{attendedHistory.length}</Text>
+            <Text style={styles.bannerCounterLabel}>Memories Captured</Text>
+          </View>
+          <TouchableOpacity style={styles.searchButton} onPress={() => router.push('/UserSearch')}>
+            <Text style={styles.searchButtonText}>🔍 Find People</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.bannerSubtitle}>Your secure historical timeline of bonding experiences and summits.</Text>
       </View>
 
       {/* Vertical Timeline scrolling engine list node */}
@@ -123,9 +132,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#7B2CBF', // Drexdel Signature Purple
     paddingVertical: 28,
     paddingHorizontal: 24,
-    alignItems: 'center',
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
+  },
+  bannerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 8,
+  },
+  searchButton: {
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+  },
+  searchButtonText: {
+    color: '#7B2CBF',
+    fontWeight: '700',
+    fontSize: 13,
   },
   bannerCounterTitle: {
     fontSize: 36,

@@ -6,13 +6,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserProfile, UserRole, EventCategory } from '../@types/events';
 import { drexdelApiClient } from '../services/api/client';
+import * as SecureStore from 'expo-secure-store';
 
 // 1. DECLARE THE CONTEXT INTERFACE CONTRACT
 interface UserContextType {
   user: UserProfile | null;
   isAuthenticated: boolean;
   isLoadingSession: boolean;
-  loginUser: (identity: string, role: UserRole) => Promise<boolean>;
+  loginUser: (identity: string, password: string) => Promise<boolean>;
   logoutUser: () => Promise<void>;
   updateUserInterests: (interests: EventCategory[]) => Promise<boolean>;
   appendAttendedEvent: (eventId: string) => void;
@@ -20,20 +21,7 @@ interface UserContextType {
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-// 2. MOCK DATA CONDUIT (Simulating a successful login profile payload response)
-const createMockProfile = (id: string, email: string, role: UserRole): UserProfile => ({
-  id,
-  username: email.split('@')[0],
-  email,
-  phoneNumber: '+250788123456', // Base formatting supporting MTN MoMo rails
-  role,
-  subscribedOrganizerIds: ['org_kcc_55'],
-  attendedEventIds: ['hist_01', 'hist_02'], // Base historical links loaded into the History Vault
-  backupRecoveryCodes: ['REC-4821', 'REC-9912', 'REC-0023'],
-  createdAt: new Date().toISOString()
-});
-
-// 3. THE LIVE STATE PROVIDER WRAPPER ENGINE
+// 2. THE LIVE STATE PROVIDER WRAPPER ENGINE
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoadingSession, setIsLoadingSession] = useState<boolean>(true);
@@ -42,18 +30,10 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const bootstrapAsyncSession = async () => {
       try {
-        console.log('[User Context] Bootstrapping localized secure session keys...');
-        // In execution: const token = await SecureStore.getItemAsync('user_token');
-        
-        // Simulating finding an existing casual user active session token profile
-        setTimeout(() => {
-          const storedMockProfile = createMockProfile('usr_me_77', 'casual_guest@drexdel.com', 'casual_user');
-          setUser(storedMockProfile);
-          drexdelApiClient.setAuthToken('MOCK_JWT_ACQUIRED_TOKEN');
-          setIsLoadingSession(false);
-        }, 1000);
-
-      } catch { 
+        const token = await SecureStore.getItemAsync('drexdel_token');
+        if (token) drexdelApiClient.setAuthToken(token);
+        setIsLoadingSession(false);
+      } catch {
         console.error('[User Context] Failed to bootstrap secure localized session key infrastructure.');
         setIsLoadingSession(false);
       }
@@ -64,21 +44,37 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   /**
    * Orchestrates the active login flow state transformations
+   * Calls the real backend /v1/auth/login endpoint.
    */
-  const loginUser = async (identity: string, role: UserRole): Promise<boolean> => {
+  const loginUser = async (identity: string, password: string): Promise<boolean> => {
     setIsLoadingSession(true);
     try {
-      console.log(`[User Context] Setting session parameters for credential role: [${role.toUpperCase()}]`);
-      
-      const sessionProfile = createMockProfile(
-        role === 'gate_staff' ? 'staff_bouncer_04' : 'usr_promoter_12',
-        identity.includes('@') ? identity : `${identity}@drexdel.com`,
-        role
-      );
+      const response = await drexdelApiClient.login(identity, password);
+      if (!response.success || !response.data) {
+        console.warn('[User Context] Login failed:', response.message);
+        setIsLoadingSession(false);
+        return false;
+      }
 
-      // Inject authorization parameters down to your core server client network wrappers
-      drexdelApiClient.setAuthToken('JWT_TOKEN_GENERATED_AT_LOGIN_RAILS');
-      setUser(sessionProfile);
+      const { token, user: authUser } = response.data;
+
+      // Persist the real JWT securely and inject it into the API client
+      await SecureStore.setItemAsync('drexdel_token', token);
+      drexdelApiClient.setAuthToken(token);
+
+      const profile: UserProfile = {
+        id: authUser.id,
+        username: authUser.name || authUser.email.split('@')[0],
+        email: authUser.email,
+        phoneNumber: '',
+        role: (authUser.role.toLowerCase() as UserRole) || 'casual_user',
+        subscribedOrganizerIds: [],
+        attendedEventIds: [],
+        backupRecoveryCodes: [],
+        createdAt: new Date().toISOString(),
+      };
+
+      setUser(profile);
       setIsLoadingSession(false);
       return true;
     } catch (error) {
@@ -88,11 +84,18 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  /**
+    /**
    * Securely purges session tokens and returns app state back to Auth login guards
+   * Calls the backend /v1/auth/logout endpoint to blacklist the JWT.
    */
   const logoutUser = async (): Promise<void> => {
     console.log('[User Context] Purging local authorization tokens and tracking contexts...');
+    try {
+      await drexdelApiClient.logout();
+    } catch {
+      // Best-effort: network error shouldn't block local logout
+    }
+    await SecureStore.deleteItemAsync('drexdel_token');
     drexdelApiClient.clearAuthToken();
     setUser(null);
   };
@@ -104,7 +107,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return false;
     try {
       console.log('[User Context] Committing interest preferences array payload data...');
-      
+
       // In production, this syncs to the server: await api.put('/user/interests', { interests });
       setUser(prev => prev ? { ...prev, subscribedOrganizerIds: [] } : null); // Updates locally
       return true;
@@ -143,7 +146,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
-// 4. CUSTOM COMPLIANT REUSABLE REACT HOOK INTERFACE
+// 3. CUSTOM COMPLIANT REUSABLE REACT HOOK INTERFACE
 export const useUser = () => {
   const context = useContext(UserContext);
   if (context === undefined) {

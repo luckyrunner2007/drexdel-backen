@@ -1,6 +1,3 @@
-export async function fetchEvents() {
-  return [];
-}
 /**
  * PROJECT DREXDEL - EVENTS & DISCOVERY DATA API SERVICE
  * FILE: src/services/api/eventsApi.ts

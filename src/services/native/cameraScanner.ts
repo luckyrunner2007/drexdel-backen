@@ -25,6 +25,15 @@ class CameraScannerService {
     return true; 
   }
 
+  private constantTimeEquals(a: string, b: string): boolean {
+    if (a.length !== b.length) return false;
+    let result = 0;
+    for (let i = 0; i < a.length; i += 1) {
+      result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    }
+    return result === 0;
+  }
+
   /**
    * PROCESS RAW QR STRING DATA
    * This is the high-frequency validation loop triggered the moment the bouncer's camera focuses on a QR code.
@@ -42,7 +51,8 @@ class CameraScannerService {
     console.log('[Scanner Service] Rapidly parsing captured matrix payload string...');
 
     // 1. Basic security structural check to ensure it's a real Drexdel issued ticket
-    if (!rawQrString.startsWith('DREXDEL_SECURE_AUTH_')) {
+    const expectedPrefix = 'DREXDEL_SECURE_AUTH_';
+    if (rawQrString.length < expectedPrefix.length || !this.constantTimeEquals(rawQrString.slice(0, expectedPrefix.length), expectedPrefix)) {
       return {
         isValid: false,
         attendeeName: 'Unknown Guest',
@@ -55,7 +65,7 @@ class CameraScannerService {
     // The scanner recalculates what the 6-digit rolling pin SHOULD be right now on this exact 30s block
     const verifiedCorrectPin = encryptionService.generateRollingOfflineToken(expectedSecretSeed);
 
-    if (scannedVisualPin !== verifiedCorrectPin) {
+    if (!this.constantTimeEquals(scannedVisualPin, verifiedCorrectPin)) {
       return {
         isValid: false,
         attendeeName: 'Ticket Holder',

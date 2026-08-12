@@ -1,21 +1,18 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
-
-const router = useRouter();
-router.push({ pathname: `/event/${item.id}`, params: { eventData: JSON.stringify(item) } });
+import { useLocalSearchParams } from 'expo-router';
 
 export const TicketReceiptScreen: React.FC = () => {
   const params = useLocalSearchParams();
-  const { ticketId, eventTitle, tierName, amount, currency } = route.params || {};
+  const value = (name: string) => typeof params[name] === 'string' ? params[name] : '—';
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Ticket Receipt</Text>
-      <Text style={styles.line}>Ticket ID: {ticketId}</Text>
-      <Text style={styles.line}>Event: {eventTitle}</Text>
-      <Text style={styles.line}>Tier: {tierName}</Text>
-      <Text style={styles.line}>Amount: {amount} {currency}</Text>
+      <Text style={styles.line}>Ticket ID: {value('ticketId')}</Text>
+      <Text style={styles.line}>Event: {value('eventTitle')}</Text>
+      <Text style={styles.line}>Tier: {value('tierName')}</Text>
+      <Text style={styles.line}>Amount: {value('amount')} {value('currency')}</Text>
     </View>
   );
 };

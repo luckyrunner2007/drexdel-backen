@@ -1,23 +1,21 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
-
-const router = useRouter();
-router.push({ pathname: `/event/${item.id}`, params: { eventData: JSON.stringify(item) } });
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useStripe } from '@stripe/stripe-react-native';
 import { InputField } from '../../components/Common/InputField';
 import { drexdelApiClient } from '../../services/api/client';
 
 const PAYMENT_METHODS = [
-  { id: 'credit_card', label: 'Credit Card' },
-  { id: 'paypal', label: 'PayPal' },
-  { id: 'mtn_momo', label: 'MTN MoMo' },
-  { id: 'airtel_money', label: 'Airtel Money' },
+  { id: 'CREDIT_CARD', label: 'Credit Card' },
+  { id: 'PAYPAL', label: 'PayPal' },
+  { id: 'MTN_MOMO', label: 'MTN MoMo' },
+  { id: 'AIRTEL_MONEY', label: 'Airtel Money' },
 ] as const;
 
 export const CheckoutScreen: React.FC = () => {
   const params = useLocalSearchParams();
   const router = useRouter();
-router.push({ pathname: `/event/${item.id}`, params: { eventData: JSON.stringify(item) } });
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const {
     eventTitle,
     selectedTierName,
@@ -25,14 +23,54 @@ router.push({ pathname: `/event/${item.id}`, params: { eventData: JSON.stringify
     currency,
     ticketQuantity,
     eventId,
-  } = router.params || {};
+    selectedTierId,
+  } = params || {};
 
-  const [paymentMethod, setPaymentMethod] = useState<'credit_card' | 'paypal' | 'mtn_momo' | 'airtel_money'>('credit_card');
+  const [paymentMethod, setPaymentMethod] = useState<'CREDIT_CARD' | 'PAYPAL' | 'MTN_MOMO' | 'AIRTEL_MONEY'>('CREDIT_CARD');
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const totalAmount = selectedTierPrice ? selectedTierPrice * (ticketQuantity || 1) : 0;
+  const getNumberParam = (value: string | string[] | undefined, fallback: number) => {
+    const parsed = Number(Array.isArray(value) ? value[0] : value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
+  const selectedTierPriceNumber = getNumberParam(selectedTierPrice, 0);
+  const ticketQuantityNumber = getNumberParam(ticketQuantity, 1);
+  const totalAmount = selectedTierPriceNumber * ticketQuantityNumber;
+
+  // Navigate to the receipt with the transaction details once we're ready.
+  const goToReceipt = (transactionId: string, status: string) => {
+    router.push({ pathname: '/receipt', params: {
+      transactionId,
+      eventTitle,
+      tierName: selectedTierName,
+      amount: totalAmount,
+      currency,
+      status,
+    } });
+  };
+
+  // Poll the backend for a terminal payment status. Card payments are confirmed
+  // client-side and the ticket is issued via webhook shortly after, so we keep
+  // checking until the transaction reaches a terminal state.
+  const pollPaymentStatus = async (transactionId: string, attemptsLeft: number = 30): Promise<boolean> => {
+    for (let attempt = 0; attempt < attemptsLeft; attempt++) {
+      try {
+        const res = await drexdelApiClient.get<any>(`/payments/status/${transactionId}`);
+        if (res.data && (res.data.status === 'COMPLETED' || res.data.status === 'completed')) {
+          return true;
+        }
+        if (res.data && (res.data.status === 'FAILED' || res.data.status === 'failed')) {
+          return false;
+        }
+      } catch {
+        // Backend may still be processing; keep polling.
+      }
+      await new Promise<void>(resolve => setTimeout(resolve, 2000));
+    }
+    return false;
+  };
 
   const handleCompletePurchase = async () => {
     if (!paymentMethod) {
@@ -40,12 +78,12 @@ router.push({ pathname: `/event/${item.id}`, params: { eventData: JSON.stringify
       return;
     }
 
-    if ((paymentMethod === 'credit_card' || paymentMethod === 'paypal') && !customerEmail) {
+    if ((paymentMethod === 'CREDIT_CARD' || paymentMethod === 'PAYPAL') && !customerEmail) {
       Alert.alert('Email Required', 'Please enter your email address to complete the payment.');
       return;
     }
 
-    if ((paymentMethod === 'mtn_momo' || paymentMethod === 'airtel_money') && !customerPhone) {
+    if ((paymentMethod === 'MTN_MOMO' || paymentMethod === 'AIRTEL_MONEY') && !customerPhone) {
       Alert.alert('Phone Required', 'Please enter your phone number to complete mobile money payment.');
       return;
     }
@@ -53,11 +91,10 @@ router.push({ pathname: `/event/${item.id}`, params: { eventData: JSON.stringify
     setIsSubmitting(true);
 
     try {
-      const transactionId = `tx_${Date.now()}`;
       const payload = {
-        transactionId,
         eventId,
-        userId: 'user_guest_01',
+        tierId: selectedTierId,
+        quantity: ticketQuantityNumber,
         amount: totalAmount,
         currency,
         paymentMethod,
@@ -67,19 +104,60 @@ router.push({ pathname: `/event/${item.id}`, params: { eventData: JSON.stringify
 
       const response = await drexdelApiClient.post('/payments/checkout', payload);
 
-      if (!response.success) {
+      if (!response.success || !response.data) {
         Alert.alert('Payment Failed', response.message || 'Unable to process payment.');
         return;
       }
 
-      router.push({ pathname: '/', params: {
-        ticketId: `TICKET-${Date.now()}`,
-        encryptedToken: `TOK-${Math.random().toString(36).substring(2, 12).toUpperCase()}`,
-        eventTitle,
-        tierName: selectedTierName,
-        amount: totalAmount,
-        currency,
-      } });
+      const data = response.data as any;
+      const transactionId = data.transactionId;
+
+      // Card payments return a PaymentIntent client secret that must be confirmed
+      // through the Stripe PaymentSheet before the ticket is issued.
+      if (data.paymentIntentClientSecret) {
+        if (Platform.OS === 'web') {
+          Alert.alert(
+            'Card Payment',
+            'Complete the card payment using the secure Stripe flow in the popup.',
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+
+        const { error: initError } = await initPaymentSheet({
+          paymentIntentClientSecret: data.paymentIntentClientSecret,
+          merchantDisplayName: 'Drexdel',
+          allowsDelayedPaymentMethods: false,
+          defaultBillingDetails: {
+            email: customerEmail.trim() || undefined,
+            phone: customerPhone.trim() || undefined,
+          },
+        });
+
+        if (initError) {
+          Alert.alert('Payment Error', initError.message || 'Unable to start secure payment.');
+          return;
+        }
+
+        const { error: presentError } = await presentPaymentSheet();
+        if (presentError) {
+          Alert.alert(
+            presentError.code === 'Canceled' ? 'Payment Canceled' : 'Payment Failed',
+            presentError.message || 'The card payment could not be completed.'
+          );
+          return;
+        }
+
+        // PaymentSheet succeeded — wait for the webhook to issue the ticket,
+        // then navigate to the receipt.
+        const paid = await pollPaymentStatus(transactionId);
+        goToReceipt(transactionId, paid ? 'COMPLETED' : 'PROCESSING');
+        return;
+      }
+
+      // Async providers (MoMo/Airtel) are pending until confirmed via webhook.
+      // Navigate to the receipt immediately and let the user track its status.
+      goToReceipt(transactionId, data.status || 'pending');
     } catch (error: any) {
       Alert.alert('Payment Error', error.message || 'Unable to complete purchase.');
     } finally {
@@ -120,7 +198,7 @@ router.push({ pathname: `/event/${item.id}`, params: { eventData: JSON.stringify
         })}
       </View>
 
-      {(paymentMethod === 'credit_card' || paymentMethod === 'paypal') && (
+      {(paymentMethod === 'CREDIT_CARD' || paymentMethod === 'PAYPAL') && (
         <InputField
           label="Email Address"
           placeholder="name@example.com"
@@ -131,7 +209,7 @@ router.push({ pathname: `/event/${item.id}`, params: { eventData: JSON.stringify
         />
       )}
 
-      {(paymentMethod === 'mtn_momo' || paymentMethod === 'airtel_money') && (
+      {(paymentMethod === 'MTN_MOMO' || paymentMethod === 'AIRTEL_MONEY') && (
         <InputField
           label="Phone Number"
           placeholder="+2507XXXXXXXX"

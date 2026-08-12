@@ -38,13 +38,26 @@ export const SignupScreen: React.FC = () => {
       return;
     }
 
-    if (password !== confirmPassword) {
+        if (password !== confirmPassword) {
       setErrorMessage('Passwords do not match.');
       return;
     }
 
-    if (password.length < 6) {
-      setErrorMessage('Password must be at least 6 characters.');
+    // Password strength validation matching backend requirements
+    if (password.length < 8) {
+      setErrorMessage('Password must be at least 8 characters.');
+      return;
+    }
+    if (!/[a-z]/.test(password)) {
+      setErrorMessage('Password must contain at least one lowercase letter.');
+      return;
+    }
+    if (!/[A-Z]/.test(password)) {
+      setErrorMessage('Password must contain at least one uppercase letter.');
+      return;
+    }
+    if (!/[0-9]/.test(password)) {
+      setErrorMessage('Password must contain at least one digit.');
       return;
     }
 
@@ -121,16 +134,39 @@ export const SignupScreen: React.FC = () => {
             editable={!isSubmitting}
           />
 
-          <Text style={styles.inputLabel}>Password</Text>
-          <TextInput
-            style={styles.textInput}
-            placeholder="Create a secure password"
-            placeholderTextColor="#ADB5BD"
-            secureTextEntry={true}
-            value={password}
-            onChangeText={setPassword}
-            editable={!isSubmitting}
-          />
+                     <Text style={styles.inputLabel}>Password</Text>
+           <TextInput
+             style={styles.textInput}
+             placeholder="Create a secure password"
+             placeholderTextColor="#ADB5BD"
+             secureTextEntry={true}
+             value={password}
+             onChangeText={setPassword}
+             editable={!isSubmitting}
+           />
+
+           {/* Password Strength Indicator */}
+           {password.length > 0 && (
+             <View style={styles.strengthIndicator}>
+               <Text style={styles.strengthLabel}>Password Strength:</Text>
+               <View style={styles.strengthRow}>
+                 <View style={[styles.strengthBar, password.length >= 8 && styles.strengthBarMet]} />
+                 <Text style={styles.strengthText}>8+ chars</Text>
+               </View>
+               <View style={styles.strengthRow}>
+                 <View style={[styles.strengthBar, /[a-z]/.test(password) && styles.strengthBarMet]} />
+                 <Text style={styles.strengthText}>Lowercase letter</Text>
+               </View>
+               <View style={styles.strengthRow}>
+                 <View style={[styles.strengthBar, /[A-Z]/.test(password) && styles.strengthBarMet]} />
+                 <Text style={styles.strengthText}>Uppercase letter</Text>
+               </View>
+               <View style={styles.strengthRow}>
+                 <View style={[styles.strengthBar, /[0-9]/.test(password) && styles.strengthBarMet]} />
+                 <Text style={styles.strengthText}>Digit</Text>
+               </View>
+             </View>
+           )}
 
           <Text style={styles.inputLabel}>Confirm Password</Text>
           <TextInput
@@ -283,9 +319,42 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6C757D',
   },
-  loginActionLink: {
+    loginActionLink: {
     fontSize: 13,
     color: '#7B2CBF',
     fontWeight: '700',
+  },
+  strengthIndicator: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E9ECEF',
+  },
+  strengthLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#495057',
+    marginBottom: 6,
+  },
+  strengthRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 3,
+  },
+  strengthBar: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#E9ECEF',
+    marginRight: 8,
+  },
+  strengthBarMet: {
+    backgroundColor: '#10B981',
+  },
+  strengthText: {
+    fontSize: 12,
+    color: '#6C757D',
   },
 });

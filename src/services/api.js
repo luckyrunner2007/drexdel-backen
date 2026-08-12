@@ -1,8 +1,8 @@
 import axios from 'axios';
+import { API_BASE_URL } from '../config/env';
 
-// Dynamically toggles baseline paths between development and your AWS Lightsail static IP address
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://34.193.20.206:5050';
-
+// Uses the shared environment config. Set EXPO_PUBLIC_API_BASE_URL in .env
+// to point at the correct backend for each environment.
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
